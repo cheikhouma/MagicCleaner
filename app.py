@@ -345,56 +345,64 @@ if uploaded_file is not None:
     
     if process_button:
         with st.spinner("Traitement en cours... Veuillez patienter."):
-            # Construction de la commande avec les options sélectionnées
-            cmd = [
-                "./realesrgan-ncnn-vulkan.exe",
-                "-i", input_path,
-                "-o", output_path,
-                "-n", model_option,
-                "-s", str(scale_factor)
-            ]
-            
-            if preserve_colors:
-                cmd.append("-fp")
-            
-            if denoise_level > 0:
-                cmd.extend(["-dn", str(denoise_level)])
-            
-            # Exécuter la commande
-            result = subprocess.run(cmd, capture_output=True)
-            
-            if result.returncode == 0 and os.path.exists(output_path):
-                # Charger et afficher l'image améliorée
+            try:
+                import cv2
+                from realesrgan import RealESRGANer
+
+                # Charger l'image
+                img = cv2.imread(input_path, cv2.IMREAD_COLOR)
+
+                # Initialiser l'upscaler
+                model_name = model_option
+                model_paths = {
+                    "realesrgan-x4plus": "realesrgan-x4plus.pth",
+                    "realesrgan-x4plus-anime": "realesrgan-x4plus-anime.pth",
+                    "realesrgan-x2plus": "realesrgan-x2plus.pth"
+                }
+
+                # Télécharger automatiquement le bon modèle
+                upsampler = RealESRGANer(
+                    scale=scale_factor,
+                    model_path=None,
+                    model_name=model_name,
+                    half=False,  # True si GPU compatible FP16 (pas sur Streamlit Cloud)
+                    tile=0,      # Tu peux activer le tiling si besoin
+                    pre_pad=0
+                )
+
+                # Traitement
+                output, _ = upsampler.enhance(img, outscale=scale_factor)
+
+                # Sauvegarder le résultat
+                cv2.imwrite(output_path, output)
+
+                # Charger l'image HD pour l'affichage
                 hd_image = Image.open(output_path)
                 hd_width, hd_height = hd_image.size
-                
+
                 st.success("✅ Image traitée avec succès!")
-                
-                # Afficher les statistiques
+
                 col_stats1, col_stats2 = st.columns(2)
                 with col_stats1:
                     st.metric("Résolution originale", f"{width} x {height}")
                 with col_stats2:
                     st.metric("Résolution HD", f"{hd_width} x {hd_height}", f"+{int((hd_width*hd_height)/(width*height)*100 - 100)}%")
-                
-                # Avant/Après
+
                 st.markdown("### Résultat: Original vs HD")
                 st.markdown('<div class="image-container">', unsafe_allow_html=True)
                 st.markdown('<div class="image-card">', unsafe_allow_html=True)
-                st.image(image, use_container_width =True, caption="Original")
+                st.image(image, use_container_width=True, caption="Original")
                 st.markdown('</div>', unsafe_allow_html=True)
                 st.markdown('<div class="image-card">', unsafe_allow_html=True)
-                st.image(hd_image, use_container_width =True, caption="HD")
+                st.image(hd_image, use_container_width=True, caption="HD")
                 st.markdown('</div>', unsafe_allow_html=True)
                 st.markdown('</div>', unsafe_allow_html=True)
-                
-                # Comparaison interactive des images
+
                 st.markdown("### Comparaison interactive")
                 st.markdown("Glissez le curseur pour voir la différence:")
                 comparison_html = create_image_comparison_html(image, hd_image)
                 st.components.v1.html(comparison_html, height=650, width=None)
-                
-                # Option de téléchargement
+
                 st.markdown('<div class="download-btn">', unsafe_allow_html=True)
                 with open(output_path, "rb") as f:
                     st.download_button(
@@ -404,15 +412,10 @@ if uploaded_file is not None:
                         mime="image/jpeg"
                     )
                 st.markdown("</div>", unsafe_allow_html=True)
-                
-                # Nettoyer les fichiers
-                try:
-                    os.remove(input_path)
-                except:
-                    pass
-            else:
-                st.error("Erreur lors du traitement de l'image. Vérifiez que l'exécutable Real-ESRGAN est présent et fonctionnel.")
-                st.code(result.stderr.decode())
+
+            except Exception as e:
+                st.error(f"Erreur lors du traitement : {e}")
+
 else:
     # Afficher un message d'accueil
     st.markdown('<div style="text-align: center; padding: 2rem 0;">', unsafe_allow_html=True)
