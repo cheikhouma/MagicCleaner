@@ -6,6 +6,11 @@ import os
 import subprocess
 import base64
 from datetime import datetime
+import os
+
+# Créer les dossiers s'ils n'existent pas (utile pour Streamlit Cloud)
+os.makedirs("input", exist_ok=True)
+os.makedirs("output", exist_ok=True)
 
 # Configuration de la page
 st.set_page_config(
