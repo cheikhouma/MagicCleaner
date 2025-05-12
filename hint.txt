@@ -1,0 +1,6 @@
+POur rendre tout un dossier en HD
+
+
+foreach ($file in Get-ChildItem .\images\*.jpg) {
+    .\realesrgan-ncnn-vulkan.exe -i $file.FullName -o "output\$($file.BaseName)_HD.jpg" -n realesrgan-x4plus
+}
